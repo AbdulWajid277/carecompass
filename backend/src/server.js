@@ -33,10 +33,11 @@ try {
   process.exit(1);
 }
 
-initSchema();
-seedIfEmpty();
-
-const resourceCount = count('resources');
+try {
+  initSchema();
+} catch (err) {
+  console.error('[startup] schema init failed:', err);
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -45,6 +46,20 @@ const allowedOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
 // Required behind App Runner / reverse proxies for correct rate-limit IPs
 app.set('trust proxy', 1);
+
+function healthPayload() {
+  return {
+    status: 'ok',
+    app: 'CareCompass',
+    resources: count('resources'),
+    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+  };
+}
+
+// Register before rate limiting so App Runner health checks always succeed
+app.get(['/health', '/api/health'], (_req, res) => {
+  res.status(200).json(healthPayload());
+});
 
 applySecurityMiddleware(app);
 
@@ -67,15 +82,6 @@ app.use(
 );
 
 app.use(express.json({ limit: '100kb' }));
-
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    app: 'CareCompass',
-    resources: resourceCount,
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
-  });
-});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/resources', resourceRoutes);
@@ -101,4 +107,10 @@ app.use(errorHandler);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`CareCompass running at http://0.0.0.0:${PORT}`);
   console.log(`Static UI: ${fs.existsSync(clientDist) ? 'enabled' : 'not found (API only)'}`);
+  try {
+    seedIfEmpty();
+    console.log(`Seeded resources: ${count('resources')}`);
+  } catch (err) {
+    console.error('[startup] seed failed:', err);
+  }
 });

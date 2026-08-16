@@ -3,7 +3,28 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const dataDir = path.join(__dirname, '../../data');
+
+function resolveDataDir() {
+  const candidates = [
+    process.env.DATA_DIR,
+    process.env.NODE_ENV === 'production' ? '/tmp/carecompass-data' : null,
+    path.join(__dirname, '../../data'),
+    '/tmp/carecompass-data',
+  ].filter(Boolean);
+
+  for (const dir of candidates) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.accessSync(dir, fs.constants.W_OK);
+      return dir;
+    } catch {
+      // try next writable location (App Runner / Cloud Run often only allow /tmp)
+    }
+  }
+  return candidates[0];
+}
+
+export const dataDir = resolveDataDir();
 export const storePath = path.join(dataDir, 'carecompass.json');
 
 const COLLECTIONS = ['users', 'resources', 'favorites', 'ai_conversations'];
@@ -40,10 +61,14 @@ function ensureShape(raw) {
 let data = emptyStore();
 
 function persist() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(storePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error(`[jsonStore] persist failed (${storePath}):`, err.message);
   }
-  fs.writeFileSync(storePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
 export function nowIso() {
@@ -51,8 +76,12 @@ export function nowIso() {
 }
 
 export function initStore() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+  } catch (err) {
+    console.error(`[jsonStore] mkdir failed (${dataDir}):`, err.message);
   }
   if (!fs.existsSync(storePath)) {
     data = emptyStore();

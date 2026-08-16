@@ -19,3 +19,5 @@ run:
       value: "8080"
     - name: CLIENT_ORIGIN
       value: "*"
+    - name: DATA_DIR
+      value: "/tmp/carecompass-data"

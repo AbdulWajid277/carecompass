@@ -23,6 +23,7 @@ RUN npm run build --prefix frontend \
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV CLIENT_ORIGIN=*
+ENV DATA_DIR=/tmp/carecompass-data
 ENV JWT_SECRET=CareCompass_AppRunner_Prod_9f3a7c2e8b1d4e6f0a5c9b7d3e1f8a2c
 
 EXPOSE 8080
