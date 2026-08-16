@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+backend/data/*.db
+backend/data/*.db-*
+.vite/
+coverage/
+*.local
+*.webm
+deliverables/video-raw/
+frontend/dist/
+playwright-report/
+test-results/
