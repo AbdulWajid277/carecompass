@@ -4,7 +4,8 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import db, { initSchema } from './db/database.js';
+import { initSchema } from './db/database.js';
+import { count } from './db/jsonStore.js';
 import { seedIfEmpty } from './db/seed.js';
 import authRoutes from './routes/auth.js';
 import resourceRoutes from './routes/resources.js';
@@ -35,7 +36,7 @@ try {
 initSchema();
 seedIfEmpty();
 
-const resourceCount = db.prepare('SELECT COUNT(*) AS c FROM resources').get().c;
+const resourceCount = count('resources');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;

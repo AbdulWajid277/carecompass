@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import db from '../db/database.js';
+import { count, groupCount } from '../db/jsonStore.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import {
   CATEGORIES,
@@ -91,23 +91,18 @@ function toDb(data) {
 }
 
 router.get('/stats', (_req, res) => {
-  const totals = db
-    .prepare(
-      `SELECT
-        (SELECT COUNT(*) FROM resources) AS resources,
-        (SELECT COUNT(*) FROM resources WHERE is_active = 1) AS activeResources,
-        (SELECT COUNT(*) FROM users) AS users,
-        (SELECT COUNT(*) FROM ai_conversations) AS aiQuestions`
-    )
-    .get();
+  const totals = {
+    resources: count('resources'),
+    activeResources: count('resources', (r) => r.is_active === 1 || r.is_active === true),
+    users: count('users'),
+    aiQuestions: count('ai_conversations'),
+  };
 
-  const byCategory = db
-    .prepare(
-      `SELECT category, COUNT(*) AS count
-       FROM resources WHERE is_active = 1
-       GROUP BY category ORDER BY count DESC`
-    )
-    .all();
+  const byCategory = groupCount(
+    'resources',
+    'category',
+    (r) => r.is_active === 1 || r.is_active === true
+  );
 
   res.json({ totals, byCategory });
 });

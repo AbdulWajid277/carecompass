@@ -1,4 +1,4 @@
-node_modules/
+﻿node_modules/
 dist/
 build/
 .env
@@ -6,6 +6,7 @@ build/
 .DS_Store
 backend/data/*.db
 backend/data/*.db-*
+backend/data/*.json
 .vite/
 coverage/
 *.local

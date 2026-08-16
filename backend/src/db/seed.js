@@ -1,28 +1,45 @@
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import db, { initSchema } from './database.js';
+import { initSchema } from './database.js';
+import { count, insert, nowIso } from './jsonStore.js';
 
 export function seedIfEmpty() {
   initSchema();
 
-  const count = db.prepare('SELECT COUNT(*) AS c FROM resources').get().c;
-  if (count > 0) {
-    console.log(`Database already seeded (${count} resources).`);
-    return { seeded: false, count };
+  const resourceCount = count('resources');
+  if (resourceCount > 0) {
+    console.log(`Database already seeded (${resourceCount} resources).`);
+    return { seeded: false, count: resourceCount };
   }
 
   const passwordHash = bcrypt.hashSync('password123', 10);
   const adminHash = bcrypt.hashSync('admin123', 10);
 
-  const insertUser = db.prepare(`
-  INSERT INTO users (email, password_hash, full_name, role, preferred_language)
-  VALUES (?, ?, ?, ?, ?)
-`);
-
-  insertUser.run('admin@carecompass.org', adminHash, 'CareCompass Admin', 'admin', 'en');
-  insertUser.run('maria@example.com', passwordHash, 'Maria Lopez', 'user', 'es');
-  insertUser.run('volunteer@carecompass.org', passwordHash, 'Jordan Lee', 'volunteer', 'en');
+  insert('users', {
+    email: 'admin@carecompass.org',
+    password_hash: adminHash,
+    full_name: 'CareCompass Admin',
+    role: 'admin',
+    preferred_language: 'en',
+    created_at: nowIso(),
+  });
+  insert('users', {
+    email: 'maria@example.com',
+    password_hash: passwordHash,
+    full_name: 'Maria Lopez',
+    role: 'user',
+    preferred_language: 'es',
+    created_at: nowIso(),
+  });
+  insert('users', {
+    email: 'volunteer@carecompass.org',
+    password_hash: passwordHash,
+    full_name: 'Jordan Lee',
+    role: 'volunteer',
+    preferred_language: 'en',
+    created_at: nowIso(),
+  });
 
   const resources = [
   {
@@ -267,23 +284,20 @@ export function seedIfEmpty() {
   },
 ];
 
-  const insertResource = db.prepare(`
-  INSERT INTO resources (
-    name, organization, category, description, eligibility, documents_needed,
-    address, city, state, zip, latitude, longitude, phone, email, website,
-    hours, languages, source_url, last_verified_at, created_by
-  ) VALUES (
-    @name, @organization, @category, @description, @eligibility, @documents_needed,
-    @address, @city, @state, @zip, @latitude, @longitude, @phone, @email, @website,
-    @hours, @languages, @source_url, datetime('now', '-' || abs(random() % 40) || ' days'), 1
-  )
-`);
+  const created = nowIso();
+  for (let i = 0; i < resources.length; i++) {
+    const daysAgo = (i * 3) % 40;
+    const verified = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
+    insert('resources', {
+      ...resources[i],
+      last_verified_at: verified,
+      is_active: 1,
+      created_by: 1,
+      created_at: created,
+      updated_at: created,
+    });
+  }
 
-  const tx = db.transaction((rows) => {
-    for (const row of rows) insertResource.run(row);
-  });
-
-  tx(resources);
   console.log(`Seeded ${resources.length} resources and 3 demo users.`);
   console.log('Demo logins:');
   console.log('  admin@carecompass.org / admin123');

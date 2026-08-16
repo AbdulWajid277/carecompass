@@ -1,0 +1,43 @@
+{
+  "ServiceName": "carecompass-app",
+  "SourceConfiguration": {
+    "AuthenticationConfiguration": {
+      "ConnectionArn": "arn:aws:apprunner:us-east-1:726580148620:connection/claimclear-github/8e93db95c35546fbb6360a083c760d67"
+    },
+    "AutoDeploymentsEnabled": true,
+    "CodeRepository": {
+      "RepositoryUrl": "https://github.com/AbdulWajid277/carecompass",
+      "SourceCodeVersion": {
+        "Type": "BRANCH",
+        "Value": "master"
+      },
+      "CodeConfiguration": {
+        "ConfigurationSource": "API",
+        "CodeConfigurationValues": {
+          "Runtime": "NODEJS_22",
+          "BuildCommand": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+          "StartCommand": "npm start --prefix backend",
+          "Port": "8080",
+          "RuntimeEnvironmentVariables": {
+            "NODE_ENV": "production",
+            "PORT": "8080",
+            "CLIENT_ORIGIN": "*",
+            "JWT_SECRET": "CareCompass_AppRunner_Prod_9f3a7c2e8b1d4e6f0a5c9b7d3e1f8a2c"
+          }
+        }
+      }
+    }
+  },
+  "InstanceConfiguration": {
+    "Cpu": "1024",
+    "Memory": "2048"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/api/health",
+    "Interval": 10,
+    "Timeout": 5,
+    "HealthyThreshold": 1,
+    "UnhealthyThreshold": 5
+  }
+}

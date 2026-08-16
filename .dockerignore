@@ -1,0 +1,8 @@
+node_modules
+frontend/dist
+backend/data
+.git
+*.webm
+deliverables/video-raw
+*.md
+!README.md

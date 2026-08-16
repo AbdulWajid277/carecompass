@@ -1,4 +1,10 @@
-import db from '../db/database.js';
+import {
+  findById,
+  findMany,
+  insert,
+  nowIso,
+  updateById,
+} from '../db/jsonStore.js';
 
 const CATEGORIES = [
   'food',
@@ -24,6 +30,12 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function includesInsensitive(haystack, needle) {
+  return String(haystack || '')
+    .toLowerCase()
+    .includes(String(needle || '').toLowerCase());
+}
+
 export function searchResources({
   q = '',
   category = '',
@@ -34,36 +46,38 @@ export function searchResources({
   radiusMiles = 25,
   limit = 50,
 } = {}) {
-  let sql = `SELECT * FROM resources WHERE is_active = 1`;
-  const params = {};
+  const qTrim = q.trim();
+  const cityTrim = city.trim();
+  const languageTrim = language.trim();
+  const max = Math.min(Number(limit) || 50, 100);
 
-  if (q.trim()) {
-    sql += ` AND (
-      name LIKE @q OR organization LIKE @q OR description LIKE @q
-      OR eligibility LIKE @q OR city LIKE @q OR category LIKE @q
-    )`;
-    params.q = `%${q.trim()}%`;
+  let rows = findMany('resources', (r) => r.is_active === 1 || r.is_active === true);
+
+  if (qTrim) {
+    rows = rows.filter(
+      (r) =>
+        includesInsensitive(r.name, qTrim) ||
+        includesInsensitive(r.organization, qTrim) ||
+        includesInsensitive(r.description, qTrim) ||
+        includesInsensitive(r.eligibility, qTrim) ||
+        includesInsensitive(r.city, qTrim) ||
+        includesInsensitive(r.category, qTrim)
+    );
   }
 
   if (category && CATEGORIES.includes(category)) {
-    sql += ` AND category = @category`;
-    params.category = category;
+    rows = rows.filter((r) => r.category === category);
   }
 
-  if (city.trim()) {
-    sql += ` AND city LIKE @city`;
-    params.city = `%${city.trim()}%`;
+  if (cityTrim) {
+    rows = rows.filter((r) => includesInsensitive(r.city, cityTrim));
   }
 
-  if (language.trim()) {
-    sql += ` AND languages LIKE @language`;
-    params.language = `%${language.trim()}%`;
+  if (languageTrim) {
+    rows = rows.filter((r) => includesInsensitive(r.languages, languageTrim));
   }
 
-  sql += ` ORDER BY name ASC LIMIT @limit`;
-  params.limit = Math.min(Number(limit) || 50, 100);
-
-  let rows = db.prepare(sql).all(params);
+  rows = [...rows].sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
   const userLat = lat != null && lat !== '' ? Number(lat) : null;
   const userLng = lng != null && lng !== '' ? Number(lng) : null;
@@ -83,73 +97,49 @@ export function searchResources({
       });
   }
 
-  return rows.map(formatResource);
+  return rows.slice(0, max).map(formatResource);
 }
 
 export function getResourceById(id) {
-  const row = db.prepare('SELECT * FROM resources WHERE id = ? AND is_active = 1').get(id);
-  return row ? formatResource(row) : null;
+  const row = findById('resources', id);
+  if (!row || !(row.is_active === 1 || row.is_active === true)) return null;
+  return formatResource(row);
 }
 
 export function getAllResourcesAdmin() {
-  return db
-    .prepare('SELECT * FROM resources ORDER BY updated_at DESC')
-    .all()
+  return findMany('resources')
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
     .map(formatResource);
 }
 
 export function createResource(data, userId) {
-  const result = db
-    .prepare(
-      `INSERT INTO resources (
-        name, organization, category, description, eligibility, documents_needed,
-        address, city, state, zip, latitude, longitude, phone, email, website,
-        hours, languages, source_url, last_verified_at, created_by
-      ) VALUES (
-        @name, @organization, @category, @description, @eligibility, @documents_needed,
-        @address, @city, @state, @zip, @latitude, @longitude, @phone, @email, @website,
-        @hours, @languages, @source_url, datetime('now'), @created_by
-      )`
-    )
-    .run({ ...data, created_by: userId });
-  return getResourceByIdAdmin(result.lastInsertRowid);
+  const created = nowIso();
+  const row = insert('resources', {
+    ...data,
+    last_verified_at: data.last_verified_at || created,
+    is_active: data.is_active === false || data.is_active === 0 ? 0 : 1,
+    created_by: userId,
+    created_at: created,
+    updated_at: created,
+  });
+  return getResourceByIdAdmin(row.id);
 }
 
 export function updateResource(id, data) {
-  const existing = db.prepare('SELECT id FROM resources WHERE id = ?').get(id);
+  const existing = findById('resources', id);
   if (!existing) return null;
 
-  db.prepare(
-    `UPDATE resources SET
-      name = @name,
-      organization = @organization,
-      category = @category,
-      description = @description,
-      eligibility = @eligibility,
-      documents_needed = @documents_needed,
-      address = @address,
-      city = @city,
-      state = @state,
-      zip = @zip,
-      latitude = @latitude,
-      longitude = @longitude,
-      phone = @phone,
-      email = @email,
-      website = @website,
-      hours = @hours,
-      languages = @languages,
-      source_url = @source_url,
-      last_verified_at = @last_verified_at,
-      is_active = @is_active,
-      updated_at = datetime('now')
-    WHERE id = @id`
-  ).run({ ...data, id });
+  updateById('resources', id, {
+    ...data,
+    is_active: data.is_active === false || data.is_active === 0 ? 0 : 1,
+    updated_at: nowIso(),
+  });
 
   return getResourceByIdAdmin(id);
 }
 
 export function getResourceByIdAdmin(id) {
-  const row = db.prepare('SELECT * FROM resources WHERE id = ?').get(id);
+  const row = findById('resources', id);
   return row ? formatResource(row) : null;
 }
 
@@ -177,7 +167,7 @@ export function retrieveForAi(question, limit = 5) {
     }
   }
 
-  let rows = db.prepare('SELECT * FROM resources WHERE is_active = 1').all();
+  const rows = findMany('resources', (r) => r.is_active === 1 || r.is_active === true);
 
   const scored = rows.map((r) => {
     const hay = `${r.name} ${r.organization} ${r.category} ${r.description} ${r.eligibility} ${r.city} ${r.languages}`.toLowerCase();

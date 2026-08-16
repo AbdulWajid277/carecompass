@@ -1,4 +1,4 @@
-import db from '../db/database.js';
+import { insert, nowIso } from '../db/jsonStore.js';
 import { retrieveForAi } from './searchService.js';
 
 const DISCLAIMER =
@@ -107,16 +107,14 @@ export async function answerQuestion({ question, language = 'en', userId = null 
     result = buildRetrievalAnswer(question, resources, language);
   }
 
-  db.prepare(
-    `INSERT INTO ai_conversations (user_id, question, answer, resource_ids, language)
-     VALUES (?, ?, ?, ?, ?)`
-  ).run(
-    userId,
+  insert('ai_conversations', {
+    user_id: userId,
     question,
-    result.answer,
-    JSON.stringify(resources.map((r) => r.id)),
-    language
-  );
+    answer: result.answer,
+    resource_ids: JSON.stringify(resources.map((r) => r.id)),
+    language,
+    created_at: nowIso(),
+  });
 
   return result;
 }

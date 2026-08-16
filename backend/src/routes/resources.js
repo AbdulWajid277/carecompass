@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import db from '../db/database.js';
+import {
+  findById,
+  findMany,
+  insertFavorite,
+  removeWhere,
+} from '../db/jsonStore.js';
 import { optionalAuth, authenticate } from '../middleware/auth.js';
 import {
   CATEGORIES,
@@ -20,14 +25,14 @@ router.get('/categories', (_req, res) => {
 });
 
 router.get('/favorites', authenticate, (req, res) => {
-  const rows = db
-    .prepare(
-      `SELECT r.* FROM resources r
-       INNER JOIN favorites f ON f.resource_id = r.id
-       WHERE f.user_id = ? AND r.is_active = 1
-       ORDER BY f.created_at DESC`
-    )
-    .all(req.user.id);
+  const favs = findMany('favorites', (f) => f.user_id === req.user.id).sort((a, b) =>
+    String(b.created_at || '').localeCompare(String(a.created_at || ''))
+  );
+
+  const rows = favs
+    .map((f) => findById('resources', f.resource_id))
+    .filter((r) => r && (r.is_active === 1 || r.is_active === true));
+
   res.json({ resources: rows.map(formatResource) });
 });
 
@@ -62,16 +67,14 @@ router.post('/:id/favorite', authenticate, (req, res) => {
   if (!resource) {
     return res.status(404).json({ error: 'Resource not found.' });
   }
-  db.prepare(
-    `INSERT OR IGNORE INTO favorites (user_id, resource_id) VALUES (?, ?)`
-  ).run(req.user.id, resource.id);
+  insertFavorite({ user_id: req.user.id, resource_id: resource.id });
   res.json({ ok: true, message: 'Saved to your favorites.' });
 });
 
 router.delete('/:id/favorite', authenticate, (req, res) => {
-  db.prepare(`DELETE FROM favorites WHERE user_id = ? AND resource_id = ?`).run(
-    req.user.id,
-    Number(req.params.id)
+  removeWhere(
+    'favorites',
+    (f) => f.user_id === req.user.id && f.resource_id === Number(req.params.id)
   );
   res.json({ ok: true, message: 'Removed from favorites.' });
 });

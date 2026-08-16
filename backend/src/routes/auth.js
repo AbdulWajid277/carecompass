@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import db from '../db/database.js';
+import { findById, findOne, insert, nowIso } from '../db/jsonStore.js';
 import { authenticate } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/security.js';
 import { sanitizeText } from '../middleware/sanitize.js';
@@ -54,23 +54,25 @@ router.post('/register', authLimiter, (req, res) => {
     const fullName = sanitizeText(parsed.data.fullName, { maxLength: 120 });
     const { password, preferredLanguage } = parsed.data;
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existing = findOne(
+      'users',
+      (u) => String(u.email).toLowerCase() === email
+    );
     if (existing) {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
 
     const passwordHash = bcrypt.hashSync(password, 12);
-    const result = db
-      .prepare(
-        `INSERT INTO users (email, password_hash, full_name, preferred_language)
-         VALUES (?, ?, ?, ?)`
-      )
-      .run(email, passwordHash, fullName, preferredLanguage);
+    const created = insert('users', {
+      email,
+      password_hash: passwordHash,
+      full_name: fullName,
+      role: 'user',
+      preferred_language: preferredLanguage,
+      created_at: nowIso(),
+    });
 
-    const user = db
-      .prepare('SELECT id, email, full_name, role, preferred_language FROM users WHERE id = ?')
-      .get(result.lastInsertRowid);
-
+    const user = findById('users', created.id);
     const token = signToken(user.id);
     res.status(201).json({ token, user: publicUser(user) });
   } catch (err) {
@@ -89,7 +91,10 @@ router.post('/login', authLimiter, (req, res) => {
     const email = sanitizeText(parsed.data.email, { maxLength: 254 }).toLowerCase();
     const { password } = parsed.data;
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = findOne(
+      'users',
+      (u) => String(u.email).toLowerCase() === email
+    );
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }

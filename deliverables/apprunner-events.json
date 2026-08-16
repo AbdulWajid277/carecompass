@@ -1,0 +1,56 @@
+﻿{
+    "events": [
+        {
+            "timestamp": 1786873976493,
+            "message": "[AppRunner] Deployment with ID : 37d6161da2fa4efeafa507ce5c94db88 started. Triggering event : SERVICE_CREATE",
+            "ingestionTime": 1786873976788
+        },
+        {
+            "timestamp": 1786873976609,
+            "message": "[AppRunner] Deployment Artifact: [Repo Type: Source], [Repository: https://github.com/AbdulWajid277/carecompass], [Branch: master], [SourceDirectory: /]",
+            "ingestionTime": 1786873976991
+        },
+        {
+            "timestamp": 1786874031210,
+            "message": "[AppRunner] Creating pipeline for automatic deployments.",
+            "ingestionTime": 1786874031468
+        },
+        {
+            "timestamp": 1786874031386,
+            "message": "[AppRunner] Successfully created pipeline for automatic deployments.",
+            "ingestionTime": 1786874031766
+        },
+        {
+            "timestamp": 1786874032294,
+            "message": "[AppRunner] Pulling source code from GITHUB Repository ( https://github.com/AbdulWajid277/carecompass ).",
+            "ingestionTime": 1786874032558
+        },
+        {
+            "timestamp": 1786874034835,
+            "message": "[AppRunner] Successfully pulled your application source code.",
+            "ingestionTime": 1786874035160
+        },
+        {
+            "timestamp": 1786874035331,
+            "message": "[AppRunner] Successfully validate configuration file.",
+            "ingestionTime": 1786874035474
+        },
+        {
+            "timestamp": 1786874035857,
+            "message": "[AppRunner] Starting source code build.",
+            "ingestionTime": 1786874036061
+        },
+        {
+            "timestamp": 1786874094125,
+            "message": "[AppRunner] Successfully built your application source code.",
+            "ingestionTime": 1786874094430
+        },
+        {
+            "timestamp": 1786874112321,
+            "message": "[AppRunner] Deployment with ID : 37d6161da2fa4efeafa507ce5c94db88 failed.",
+            "ingestionTime": 1786874112546
+        }
+    ],
+    "nextForwardToken": "f/39848624280721210141726815184211780287983809365513011200/s",
+    "nextBackwardToken": "b/39848621251655591315709334951576892524012838575840821248/s"
+}
